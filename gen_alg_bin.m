@@ -8,6 +8,7 @@ classdef gen_alg_bin < handle
         hist_max
         options
         minimize
+        plot_handle
     end
 
     methods
@@ -18,11 +19,12 @@ classdef gen_alg_bin < handle
             obj.hist_mean = [];
             obj.hist_max = [];
             obj.minimize = true;
+            obj.plot_handle = [];
             obj.options = optimoptions('ga', ...
-                PopulationType='bitstring', ...
                 SelectionFcn='selectionroulette', ...
                 CrossoverFcn='crossoversinglepoint', ...
                 MutationFcn='mutationuniform', ...
+                PopulationType='bitstring', ...
                 PlotFcn=@(options, state, flag) obj.plotfun(options, state, flag), ...
                 OutputFcn=@(options, state, flag) obj.ga_output(options, state, flag));
         end
@@ -31,7 +33,7 @@ classdef gen_alg_bin < handle
             obj.options = optimoptions(obj.options, varargin{:});
         end
 
-        function [x_opt_dec, fval] = optimize(obj, my_fun, mini, maxi, minimize)
+        function [x_opt_dec, fval] = optimize(obj, my_fun, mini, maxi, minimize, plot_ax)
             %OPTIMIZE Run the ga function with plotting
             arguments
                 obj
@@ -39,9 +41,15 @@ classdef gen_alg_bin < handle
                 mini (1,1) double = intmin
                 maxi (1,1) double = intmax
                 minimize (1,1) logical = true
+                plot_ax matlab.ui.control.UIAxes = matlab.ui.control.UIAxes.empty()
             end
-
+            
+            obj.generations = [];
+            obj.hist_min = [];
+            obj.hist_mean = [];
+            obj.hist_max = [];
             obj.minimize = minimize;
+            obj.plot_handle = plot_ax;
 
             % Set function sign depending on task
             if not(minimize)
@@ -89,13 +97,13 @@ classdef gen_alg_bin < handle
         function state = plotfun(obj, ~, state, flag)
             %PLOTFUN Draw plots from captured ga state structure values
             if strcmp(flag, 'iter')
-                plot(obj.generations, obj.hist_min, 'b-', 'LineWidth', 1.5)
-                hold on
-                plot(obj.generations, obj.hist_mean, 'r-', 'LineWidth', 1.5)
-                plot(obj.generations, obj.hist_max, 'g-', 'LineWidth', 1.5)
-                hold off
+                plot(obj.plot_handle, obj.generations, obj.hist_min, 'b-', 'LineWidth', 1.5)
+                hold (obj.plot_handle, 'on')
+                plot(obj.plot_handle, obj.generations, obj.hist_mean, 'r-', 'LineWidth', 1.5)
+                plot(obj.plot_handle, obj.generations, obj.hist_max, 'g-', 'LineWidth', 1.5)
+                hold (obj.plot_handle, 'off')
             
-                legend('Min (Best)', 'Mean', 'Max')
+                legend(obj.plot_handle, 'Min (Best)', 'Mean', 'Max')
             end
         end
     end
