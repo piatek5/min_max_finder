@@ -1,6 +1,6 @@
 classdef gen_alg_bin < handle
     %GEN_ALG_BIN Calculate minimum/maximum of a given function with
-    %constraints using binary number representation
+    % constraints using binary number representation
     properties
         generations
         hist_min
@@ -43,7 +43,7 @@ classdef gen_alg_bin < handle
                 plot_ax matlab.ui.control.UIAxes
             end
 
-            obj.validate(mini, maxi, my_fun)
+            obj.validate(mini, maxi)
             
             obj.generations = [];
             obj.hist_min = [];
@@ -88,7 +88,7 @@ classdef gen_alg_bin < handle
 
         function [state, options, optchanged] = ga_output(obj, options, state, flag)
             %GA_OUTPUT Output function for ga; takes values from ga state
-            %structure
+            % structure
             v_sign = 1;
             % Set value sign depending on task
             if not(obj.minimize)
@@ -101,13 +101,13 @@ classdef gen_alg_bin < handle
 
             % Plotting previous data
             if strcmp(flag, 'iter')
-                obj.plotfun(); 
+                obj.plotfun_metrics(); 
             end
 
             optchanged = false;
         end
 
-        function plotfun(obj)
+        function plotfun_metrics(obj)
             %PLOTFUN Draw plots from captured ga state structure values
             plot(obj.plot_handle, obj.generations, obj.hist_min, 'b-', 'LineWidth', 1.5)
             hold (obj.plot_handle, 'on')
@@ -115,10 +115,24 @@ classdef gen_alg_bin < handle
             plot(obj.plot_handle, obj.generations, obj.hist_max, 'g-', 'LineWidth', 1.5)
             hold (obj.plot_handle, 'off')
 
+            if obj.minimize
+                val_range = max(obj.hist_mean) - min(obj.hist_min) + 1;
+                val_range = val_range * 0.1;
+                ylim(obj.plot_handle, [ ...
+                    min(obj.hist_min) - val_range, ...
+                    max(obj.hist_mean) + val_range])
+            else
+                val_range = max(obj.hist_max) - min(obj.hist_mean) + 1;
+                val_range = val_range * 0.1;
+                ylim(obj.plot_handle, [ ...
+                    min(obj.hist_mean) - val_range, ...
+                    max(obj.hist_max) + val_range])
+            end
+
             title(obj.plot_handle, sprintf('Min: %.2f, Mean: %.2f, Max: %.2f', ...
                 obj.hist_min(end), obj.hist_mean(end), obj.hist_max(end)))
-        
             legend(obj.plot_handle, 'Min', 'Mean', 'Max')
+
             drawnow
         end
     end
@@ -138,18 +152,9 @@ classdef gen_alg_bin < handle
             end
         end
 
-        function validate(mini, maxi, func_str)
-            % min/max domain
+        function validate(mini, maxi)
             if maxi < mini
                 fprintf("Minimum domain value is greater than maximum value")
-                return
-            end
-            % function
-            try
-                current_func = str2func(func_str);
-                test_val = current_func(0);
-            catch exception
-                fprintf("Function: " + exception.message);
                 return
             end
         end
