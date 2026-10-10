@@ -36,7 +36,7 @@ classdef gen_alg_bin < handle
             obj.options = optimoptions(obj.options, varargin{:});
         end
 
-        function [x_opt_dec, fval] = optimize(obj, my_fun, mini, maxi, minimize, plot_ax)
+        function [x_opt_dec, fval] = optimize(obj, my_fun, mini, maxi, minimize, precision, plot_ax)
             %OPTIMIZE Run the ga function with plotting
             arguments
                 obj
@@ -44,6 +44,7 @@ classdef gen_alg_bin < handle
                 mini (1,1) double
                 maxi (1,1) double
                 minimize (1,1) logical
+                precision (1,1) double
                 plot_ax matlab.ui.control.UIAxes
             end
 
@@ -63,9 +64,13 @@ classdef gen_alg_bin < handle
             end
 
             % Params for ga
-            val_range = maxi - mini + 1;
+            if precision > 0
+                val_range = (ceil(maxi) - floor(mini) + 1) * 10^precision;
+            else
+                val_range = floor(maxi) - floor(mini) + 1;
+            end
             nvars = length(dec2bin(val_range));
-            my_fun_ga = @(bits) obj.my_fun_bin(my_fun, bits, mini, maxi);
+            my_fun_ga = @(bits) obj.my_fun_bin(my_fun, bits, mini, maxi, precision);
 
             % Calling the genetic algorithm
             [x_opt, fval] = ga( ...
@@ -79,7 +84,10 @@ classdef gen_alg_bin < handle
                 fval = -fval;
             end
 
-            x_opt_dec = mini + polyval(x_opt, 2);
+            x_opt_dec = mini + x_opt * (2.^(length(x_opt)-1:-1:0))';
+            if precision > 0
+                x_opt_dec = x_opt_dec / 10^precision;
+            end
             fprintf('Found x (argument): %.2f\n', x_opt_dec);
             if minimize
                 fprintf('Minimum value: %.2f\n', fval);
@@ -124,15 +132,21 @@ classdef gen_alg_bin < handle
             title(obj.plot_handle, sprintf('Min: %.2f, Mean: %.2f, Max: %.2f', ...
                 obj.hist_min(end), obj.hist_mean(end), obj.hist_max(end)))
             legend(obj.plot_handle, 'Min', 'Mean', 'Max')
+            xlabel(obj.plot_handle,'generation number')
+            ylabel(obj.plot_handle,'f(x)')
 
             drawnow
         end
 
-        function y = my_fun_bin(obj, my_fun, bits, mini, maxi)
+        function y = my_fun_bin(obj, my_fun, bits, mini, maxi, precision)
             %MY_FUN_BIN Calculate function value from a binary input with decimal
             % constraints and a penalty value
-            x = polyval(bits, 2);
+            x = bits * (2.^(length(bits)-1:-1:0))';
             x = mini + x;
+
+            if precision > 0
+                x = x / 10^precision;
+            end
 
             if x > maxi
                 if isempty(obj.prev_pop_in_domain) || isempty(obj.penalty_base) || isnan(obj.penalty_base)
