@@ -6,6 +6,8 @@ classdef gen_alg_bin < handle
         hist_min
         hist_mean
         hist_max
+        prev_pop_in_domain
+        penalty_base
         options
         minimize
         plot_handle
@@ -18,6 +20,8 @@ classdef gen_alg_bin < handle
             obj.hist_min = [];
             obj.hist_mean = [];
             obj.hist_max = [];
+            obj.prev_pop_in_domain = [];
+            obj.penalty_base = NaN;
             obj.minimize = true;
             obj.plot_handle = [];
             obj.options = optimoptions('ga', ...
@@ -49,6 +53,7 @@ classdef gen_alg_bin < handle
             obj.hist_min = [];
             obj.hist_mean = [];
             obj.hist_max = [];
+            obj.prev_pop_in_domain = [];
             obj.minimize = minimize;
             obj.plot_handle = plot_ax;
 
@@ -58,9 +63,6 @@ classdef gen_alg_bin < handle
             end
 
             % Params for ga
-            if mini > maxi
-                [mini, maxi] = deal(maxi, mini);
-            end
             val_range = maxi - mini + 1;
             nvars = length(dec2bin(val_range));
             my_fun_ga = @(bits) obj.my_fun_bin(my_fun, bits, mini, maxi);
@@ -104,6 +106,10 @@ classdef gen_alg_bin < handle
                 obj.plotfun_metrics(); 
             end
 
+            if ~isempty(obj.prev_pop_in_domain)
+                obj.penalty_base = max(obj.prev_pop_in_domain);
+            end
+            obj.prev_pop_in_domain = [];
             optchanged = false;
         end
 
@@ -115,43 +121,36 @@ classdef gen_alg_bin < handle
             plot(obj.plot_handle, obj.generations, obj.hist_max, 'g-', 'LineWidth', 1.5)
             hold (obj.plot_handle, 'off')
 
-            if obj.minimize
-                val_range = max(obj.hist_mean) - min(obj.hist_min) + 1;
-                val_range = val_range * 0.1;
-                ylim(obj.plot_handle, [ ...
-                    min(obj.hist_min) - val_range, ...
-                    max(obj.hist_mean) + val_range])
-            else
-                val_range = max(obj.hist_max) - min(obj.hist_mean) + 1;
-                val_range = val_range * 0.1;
-                ylim(obj.plot_handle, [ ...
-                    min(obj.hist_mean) - val_range, ...
-                    max(obj.hist_max) + val_range])
-            end
-
             title(obj.plot_handle, sprintf('Min: %.2f, Mean: %.2f, Max: %.2f', ...
                 obj.hist_min(end), obj.hist_mean(end), obj.hist_max(end)))
             legend(obj.plot_handle, 'Min', 'Mean', 'Max')
 
             drawnow
         end
+
+        function y = my_fun_bin(obj, my_fun, bits, mini, maxi)
+            %MY_FUN_BIN Calculate function value from a binary input with decimal
+            % constraints and a penalty value
+            x = polyval(bits, 2);
+            x = mini + x;
+
+            if x > maxi
+                if isempty(obj.prev_pop_in_domain) || isempty(obj.penalty_base) || isnan(obj.penalty_base)
+                    y = inf;
+                else
+                    distance = x - maxi;
+                    weight = 10;
+                    y = obj.penalty_base + weight * distance^2;
+                end
+                return
+            else
+                y = my_fun(x);
+                obj.prev_pop_in_domain(end+1) = y;
+            end
+        end
     end
 
     methods (Static)
-        function y = my_fun_bin(my_fun, bits, mini, maxi)
-        %MY_FUN_BIN Calculate function value from a binary input with decimal
-        %constraints and a penalty value
-            x = polyval(bits, 2);
-            x = mini + x;
-            y = my_fun(x);
-
-            % Penalty for exceeding domain
-            if x > maxi
-                y = 1e12 * (1 + (x - maxi)^2);
-                return
-            end
-        end
-
         function validate(mini, maxi)
             if maxi < mini
                 fprintf("Minimum domain value is greater than maximum value")
