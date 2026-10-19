@@ -29,14 +29,16 @@ classdef gen_alg_bin < handle
                 CrossoverFcn='crossoversinglepoint', ...
                 MutationFcn='mutationuniform', ...
                 PopulationType='bitstring', ...
-                OutputFcn=@(options, state, flag) obj.ga_output(options, state, flag));
+                OutputFcn=@(options, state, flag) obj.ga_output( ...
+                    options, state, flag));
         end
 
         function set_options(obj, varargin)
             obj.options = optimoptions(obj.options, varargin{:});
         end
 
-        function [x_opt_dec, fval] = optimize(obj, my_fun, mini, maxi, minimize, precision, plot_ax)
+        function [x_opt_dec, fval] = optimize( ...
+                obj, my_fun, mini, maxi, minimize, precision, plot_ax)
             %OPTIMIZE Run the ga function with plotting
             arguments
                 obj
@@ -63,13 +65,15 @@ classdef gen_alg_bin < handle
                 my_fun = @(x) -my_fun(x);
             end
 
-            % Params for ga
             if precision > 0
+                % Every extra decimal point is and additional power of 10
                 val_range = (ceil(maxi) - floor(mini) + 1) * 10^precision;
             else
                 val_range = floor(maxi) - floor(mini) + 1;
             end
+            % Counting bits of val_range
             nvars = length(dec2bin(val_range));
+            % Wrapper that accepts only bits
             my_fun_ga = @(bits) obj.my_fun_bin(my_fun, bits, mini, maxi, precision);
 
             % Calling the genetic algorithm
@@ -79,12 +83,15 @@ classdef gen_alg_bin < handle
                 [], [], [], [], [], [], [], [], ...
                 obj.options);
 
-            % Reversing final result
+            % Set final result sign depending on task
             if not(minimize)
                 fval = -fval;
             end
+            
+            powers_of_two = (2.^(length(x_opt)-1:-1:0))';
+            % Converting x_opt to dec with a min value shift
+            x_opt_dec = mini + x_opt * powers_of_two;
 
-            x_opt_dec = mini + x_opt * (2.^(length(x_opt)-1:-1:0))';
             if precision > 0
                 x_opt_dec = x_opt_dec / 10^precision;
             end
@@ -109,15 +116,20 @@ classdef gen_alg_bin < handle
             obj.hist_mean(end+1) = mean(state.Score.* v_sign);
             obj.hist_max(end+1) = max(state.Score.* v_sign);
 
-            % Plotting previous data
+            % Plotting metrics data
             if strcmp(flag, 'iter')
                 obj.plotfun_metrics(); 
             end
 
             if ~isempty(obj.prev_pop_in_domain)
+                % If a record of previous population exists, calculate 
+                % a new penalty base
                 obj.penalty_base = max(obj.prev_pop_in_domain);
             end
+
+            % Reset for gathering new data during the next iteration
             obj.prev_pop_in_domain = [];
+            
             optchanged = false;
         end
 
@@ -150,6 +162,7 @@ classdef gen_alg_bin < handle
 
             if x > maxi
                 if isempty(obj.prev_pop_in_domain) || isempty(obj.penalty_base) || isnan(obj.penalty_base)
+                    % If we can't get any data, set penalty to inf
                     y = inf;
                 else
                     distance = x - maxi;
