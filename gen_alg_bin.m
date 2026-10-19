@@ -112,9 +112,11 @@ classdef gen_alg_bin < handle
                 v_sign = -1;
             end
             obj.generations(end+1) = state.Generation;
-            obj.hist_min(end+1) = min(state.Score .* v_sign) ;
-            obj.hist_mean(end+1) = mean(state.Score.* v_sign);
-            obj.hist_max(end+1) = max(state.Score.* v_sign);
+            finite_score = state.Score(isfinite(state.Score));
+            
+            obj.hist_min(end+1) = min(finite_score .* v_sign) ;
+            obj.hist_mean(end+1) = mean(finite_score .* v_sign);
+            obj.hist_max(end+1) = max(finite_score .* v_sign);
 
             % Plotting metrics data
             if strcmp(flag, 'iter')
